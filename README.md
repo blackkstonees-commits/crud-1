@@ -1,65 +1,55 @@
-SELECT id, username, password, LENGTH(username) as len_user, LENGTH(password) as len_pass FROM ms_users;
+SERVER JS-----
 
-UPDATE ms_users 
-SET username = TRIM('admin'), 
-    password = TRIM('123456') 
-WHERE id = 1; 
--- (atau sesuaikan dengan ID user Anda)
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+require('dotenv').config();
 
-const db = require('../config/db'); // Sesuaikan path koneksi database Anda
+const authRoutes = require('./routes/authRoutes');
+const stokRoutes = require('./routes/stokRoutes');
+const jamProduksiRoutes = require('./routes/jamProduksiRoutes');
+const mesinRoutes = require('./routes/mesinRoutes');
+const ppRoutes = require('./routes/ppRoutes');
 
-const login = async (req, res) => {
-  try {
-    const { username, password } = req.body;
+const app = express();
 
-    console.log("\n--- [DEBUG LOGIN] ---");
-    console.log("Input dari Frontend -> Username:", `"${username}"`, "| Password:", `"${password}"`);
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-    if (!username || !password) {
-      console.log("❌ Input kosong!");
-      return res.status(400).json({ success: false, message: 'Username dan Password wajib diisi!' });
-    }
 
-    // 1. Cari user di database (abaikan huruf besar/kecil & spasi)
-    const queryText = 'SELECT * FROM ms_users WHERE LOWER(TRIM(username)) = LOWER(TRIM($1))';
-    const result = await db.query(queryText, [username]);
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/stok', stokRoutes);
+app.use('/api/jam-produksi', jamProduksiRoutes);
+app.use('/api/mesin', mesinRoutes);
+app.use('/api', ppRoutes);
+app.get('/', (req, res) => {
+  res.json({ message: 'API PLPP Manufacturing Berjalan Normal' });
+});
 
-    if (result.rows.length === 0) {
-      console.log("❌ Username TIDAK DITEMUKAN di database!");
-      return res.status(401).json({ success: false, message: 'Username atau Password salah' });
-    }
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server berjalan di http://localhost:${PORT}`);});
 
-    const user = result.rows[0];
-    console.log("Data dari DB      -> Username:", `"${user.username}"`, "| Password DB:", `"${user.password}"`);
+AUTH.JS-----
 
-    // 2. Bandingkan Password (Plain Text)
-    const inputPass = String(password).trim();
-    const dbPass = String(user.password).trim();
-
-    if (inputPass !== dbPass) {
-      console.log("❌ Password TIDAK COCOK!");
-      console.log(`Bandingkan: "${inputPass}" VS "${dbPass}"`);
-      return res.status(401).json({ success: false, message: 'Username atau Password salah' });
-    }
-
-    console.log("✅ LOGIN BERHASIL!");
-    return res.json({
-      success: true,
-      message: 'Login berhasil',
-      data: {
-        id: user.id,
-        username: user.username,
-        role: user.role || 'user'
-      }
-    });
-
-  } catch (error) {
-    console.error("🔥 Error Server saat Login:", error);
-    return res.status(500).json({ success: false, message: 'Terjadi kesalahan server: ' + error.message });
+// Cek status autentikasi untuk halaman dashboard
+function checkAuth() {
+  const token = localStorage.getItem('token');
+  if (!token && window.location.pathname !== '/login.html') {
+    window.location.href = '/login.html';
   }
-};
+}
 
-module.exports = { login };
+// Fungsi Logout
+function logout() {
+  localStorage.removeItem('token');
+  window.location.href = '/login.html';
+}
+
+
+
 
 
 
